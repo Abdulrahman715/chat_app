@@ -15,7 +15,7 @@
 - **Cloud Firestore:** كقاعدة بيانات سحابية لتخزين الرسائل.
 - **Modal Progress HUD:** لعرض مؤشر التحميل أثناء العمليات.
 - **Google Fonts:** لتحسين الخطوط داخل التطبيق.
-
+- **State Management:** Cubit & Bloc with Bloc Observer
 ## 📸 لقطات من التطبيق (Screenshots)
 
 <p align="center">
