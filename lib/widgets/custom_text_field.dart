@@ -6,7 +6,8 @@ class CustomTextField extends StatelessWidget {
     super.key,
     required this.controller,
     required this.labelText,
-    required this.hintText, required this.iconDescription,
+    required this.hintText, 
+    required this.iconDescription,
     this.obscureText = false, 
   });
 

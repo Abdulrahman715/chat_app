@@ -1,10 +1,13 @@
 import 'package:chat_app/constants.dart';
+import 'package:chat_app/cubit/register/register_cubit.dart';
+import 'package:chat_app/cubit/register/register_states.dart';
 import 'package:chat_app/views/chat_view.dart';
 import 'package:chat_app/widgets/custom_button.dart';
 import 'package:chat_app/widgets/custom_text_field.dart';
 import 'package:chat_app/helper/show_snack_bar_message.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:modal_progress_hud_nsn/modal_progress_hud_nsn.dart';
 
 class RegisterBody extends StatefulWidget {
@@ -29,166 +32,185 @@ class _RegisterBodyState extends State<RegisterBody> {
   //! This is a GlobalKey that is used to identify the form and access its state. It allows us to validate the form and perform actions based on the form's state, such as showing error messages or submitting the form data.
   GlobalKey<FormState> formKey = GlobalKey<FormState>();
 
-  bool isLoading = false;
-
   @override
   Widget build(BuildContext context) {
-    return ModalProgressHUD(
-      inAsyncCall: isLoading,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 90.0),
-        child: Form(
-          key: formKey,
-          child: ListView(
-            children: [
-              Image(
-                image: AssetImage(kLogo),
-                width: 150,
-                height: 150,
-              ),
-              // SizedBox(height: 5),
-              Center(
-                child: Text(
-                  "Scholar Chat",
-                  style: TextStyle(
-                    fontSize: 40,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    fontFamily: "Pacifico",
-                  ),
-                ),
-              ),
-              SizedBox(height: 60),
-              Text(
-                'Sign Up ',
-                textAlign: TextAlign.left,
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Colors.white70,
-                  fontFamily: "SourceCodePro",
-                ),
-              ),
-              SizedBox(height: 20),
-              CustomTextField(
-                controller: emailController,
-                labelText: "Email",
-                hintText: "Enter your email",
-                iconDescription: Icons.email_outlined,
-              ),
-              SizedBox(height: 20),
+    return BlocConsumer<RegisterCubit, RegisterStates>(
+      listener: (context, state) {
+        if (state is RegisterSuccessState) {
+          Navigator.pushNamed(
+            context,
+            ChatView.id,
+            arguments: emailController.text,
+          );
+        }
 
-              CustomTextField(
-                controller: passwordController,
-                labelText: "Password",
-                hintText: "Enter your password",
-                iconDescription: Icons.lock_outline,
-                obscureText: true,
-              ),
-              SizedBox(height: 20),
-
-              //! This is a custom button widget that is used for the register action. It is styled with a specific background color, padding, and text style to match the overall design of the register screen. The onPressed callback is currently empty, but it can be implemented to handle the register logic when the button is pressed.
-              CustomButton(
-                onPressed: () async {
-                  //! هنتاكد ان الفورم صح قبل ما نعمل اي حاجة
-                  if (formKey.currentState?.validate() ?? false) {
-                    //! بعد ما يتاكد ان الفورم صح هنخلي ال شاشة تحمل عشان نشوف فى مشكلة ولا تم تسجيل
-                    isLoading = true; //loading indicator
-
-                    //! علشان نحدث الواجهة ونشوف ال شاشة التحميل لازم نستخدم
-                    setState(() {});
-
-                    try {
-                      await registerUser();
-
-                      //! هنعمل فحص ان الودجت لسة موجودة
-                      if (!context.mounted) return;
-
-                      showSnackBarMessage(
-                        context,
-                        message: "User registered successfully!",
-                      );
-
-                      //! Navigate to the chat screen (replace with your actual chat screen route)
-                      //? send the email to the chat screen as an argument to recognize the user in the chat screen and show his messages
-                      Navigator.pushNamed(context, ChatView.id , arguments: emailController.text);
-
-                      // print(credential.user?.email);
-                    } on FirebaseAuthException catch (e) {
-                      //! هنعمل فحص ان الودجت لسة موجودة
-                      if (!context.mounted) return;
-
-                      if (e.code == 'weak-password') {
-                        showSnackBarMessage(
-                          context,
-                          message: 'The password provided is too weak.',
-                        );
-                      } else if (e.code == 'email-already-in-use') {
-                        showSnackBarMessage(
-                          context,
-                          message: 'The email is already in use.',
-                        );
-                      }
-                    } catch (e) {
-                      //! هنعمل فحص ان الودجت لسة موجودة
-                      if (!context.mounted) return;
-
-                      showSnackBarMessage(
-                        context,
-                        message: 'An error occurred. Please try again.',
-                      );
-                      //!'An error occurred. Please try again.'
-                    }
-
-                    isLoading = false; //?stop loading indicator
-                    setState(
-                      () {},
-                    ); //?update the UI to stop showing the loading indicator
-                  } else {
-                    //! هنعمل فحص ان الودجت لسة موجودة
-                    if (!context.mounted) return;
-
-                    showSnackBarMessage(
-                      context,
-                      message: 'Please fill in all fields correctly.',
-                    );
-                  }
-                },
-                objOfText: "Register",
-              ),
-
-              SizedBox(height: 20),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+        if (state is RegisterErrorState) {
+          showSnackBarMessage(context, message: state.errMessage);
+        }
+      },
+      builder: (context, state) {
+        return ModalProgressHUD(
+          inAsyncCall: state is RegisterLoadingState,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 8.0,
+              vertical: 90.0,
+            ),
+            child: Form(
+              key: formKey,
+              child: ListView(
                 children: [
+                  Image(image: AssetImage(kLogo), width: 150, height: 150),
+                  // SizedBox(height: 5),
+                  Center(
+                    child: Text(
+                      "Scholar Chat",
+                      style: TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontFamily: "Pacifico",
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 60),
                   Text(
-                    "Relly have an account? ",
+                    'Sign Up ',
+                    textAlign: TextAlign.left,
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 18,
                       color: Colors.white70,
                       fontFamily: "SourceCodePro",
                     ),
                   ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
+                  SizedBox(height: 20),
+                  CustomTextField(
+                    controller: emailController,
+                    labelText: "Email",
+                    hintText: "Enter your email",
+                    iconDescription: Icons.email_outlined,
+                  ),
+                  SizedBox(height: 20),
+
+                  CustomTextField(
+                    controller: passwordController,
+                    labelText: "Password",
+                    hintText: "Enter your password",
+                    iconDescription: Icons.lock_outline,
+                    obscureText: true,
+                  ),
+                  SizedBox(height: 20),
+
+                  //! This is a custom button widget that is used for the register action. It is styled with a specific background color, padding, and text style to match the overall design of the register screen. The onPressed callback is currently empty, but it can be implemented to handle the register logic when the button is pressed.
+                  CustomButton(
+                    onPressed: () async {
+                      //! هنتاكد ان الفورم صح قبل ما نعمل اي حاجة
+                      if (formKey.currentState?.validate() ?? false) {
+                        BlocProvider.of<RegisterCubit>(context).registerUser(
+                          email: emailController.text,
+                          password: passwordController.text,
+                        );
+                        //! بعد ما يتاكد ان الفورم صح هنخلي ال شاشة تحمل عشان نشوف فى مشكلة ولا تم تسجيل
+                        // isLoading = true; //loading indicator
+
+                        // //! علشان نحدث الواجهة ونشوف ال شاشة التحميل لازم نستخدم
+                        // setState(() {});
+
+                        // try {
+                        //   //! call the registerUser function to create a new user with the provided email and password. This function interacts with Firebase Authentication to handle the registration process. If the registration is successful, it will proceed to show a success message and navigate to the chat screen. If there are any errors during registration, such as weak password or email already in use, it will catch those exceptions and display appropriate error messages to the user.
+                        //   await registerUser();
+
+                        //   //! هنعمل فحص ان الودجت لسة موجودة
+                        //   if (!context.mounted) return;
+
+                        //   //! الصفحة مفتوحة قدامه تمام و نقدر نعرض رسالة نجاح
+                        //   showSnackBarMessage(
+                        //     context,
+                        //     message: "User registered successfully!",
+                        //   );
+
+                        //   //! Navigate to the chat screen (replace with your actual chat screen route)
+                        //   //? send the email to the chat screen as an argument to recognize the user in the chat screen and show his messages
+                        //   Navigator.pushNamed(context, ChatView.id , arguments: emailController.text);
+
+                        //   // print(credential.user?.email);
+                        // } on FirebaseAuthException catch (e) {
+                        //   //! هنعمل فحص ان الودجت لسة موجودة
+                        //   if (!context.mounted) return;
+
+                        //   if (e.code == 'weak-password') {
+                        //     showSnackBarMessage(
+                        //       context,
+                        //       message: 'The password provided is too weak.',
+                        //     );
+                        //   } else if (e.code == 'email-already-in-use') {
+                        //     showSnackBarMessage(
+                        //       context,
+                        //       message: 'The email is already in use.',
+                        //     );
+                        //   }
+                        // } catch (e) {
+                        //   //! هنعمل فحص ان الودجت لسة موجودة
+                        //   if (!context.mounted) return;
+
+                        //   showSnackBarMessage(
+                        //     context,
+                        //     message: 'An error occurred. Please try again.',
+                        //   );
+                        // }
+
+                        // isLoading = false; //?stop loading indicator
+                        // setState(
+                        //   () {},
+                        // ); //?update the UI to stop showing the loading indicator
+                      } else {
+                        //! هنعمل فحص ان الودجت لسة موجودة
+                        if (!context.mounted) return;
+
+                        showSnackBarMessage(
+                          context,
+                          message: 'Please fill in all fields correctly.',
+                        );
+                      }
                     },
-                    child: Text(
-                      "Sign In",
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.blueGrey.shade100,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: "SourceCodePro",
+                    objOfText: "Register",
+                  ),
+
+                  SizedBox(height: 20),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        "Really have an account? ",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white70,
+                          fontFamily: "SourceCodePro",
+                        ),
                       ),
-                    ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                        child: Text(
+                          "Sign In",
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.blueGrey.shade100,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: "SourceCodePro",
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
